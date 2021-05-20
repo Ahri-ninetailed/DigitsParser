@@ -7,7 +7,7 @@ using System.Threading;
 using System.Collections;
 namespace DigitParser
 {
-    //Программа переводит цифры в числа на англ. яз. Числа до миллионов должны переводится без ошибок, после миллиона возможны баги
+    //Программа переводит цифры в числа на англ. яз. Парсер работает на миллионных значениях
     class DigitsParser
     {
         static Dictionary<string, string> Words = new Dictionary<string, string>
@@ -61,12 +61,25 @@ namespace DigitParser
                     million += str[i];
             }
             //восстановить правильный порядок числа. Было 100 стало 001
+            char[] temp = null;
             if (thousand != "")
-                thousand = StringReverse(thousand);
+            {
+                temp = thousand.ToArray();
+                Array.Reverse(temp);
+                thousand = new string(temp);
+            }
             if (hundred != "")
-                hundred = StringReverse(hundred);
+            {
+                temp = hundred.ToArray();
+                Array.Reverse(temp);
+                hundred = new string(temp);
+            }
             if (million != "")
-                million = StringReverse(million);
+            {
+                temp = million.ToArray();
+                Array.Reverse(temp);
+                million = new string(temp);
+            }
             //избавиться от лишних нулей перед числом. Было 001 стало 1 
             CheckingForZerosBeforeANumber();
             //работа метода разделена на три поток, потоки переводят миллионы, тысячи и сотни в буквенные представление
@@ -122,6 +135,10 @@ namespace DigitParser
                 {
                     thisanswer += " " + Words[hundred[1].ToString() + hundred[2].ToString()];
                 }
+                else if (hundred[1] == '1')
+                {
+                    thisanswer += " " + Words[hundred[1].ToString() + hundred[2].ToString()];
+                } 
                 //если сотня имеет разные десятки и единицы не равные 0
                 else
                 {
@@ -142,19 +159,25 @@ namespace DigitParser
                 //если у сотни десяток и единицы ничинаются на одинаковую цифру
                 else if (hundred[0] == hundred[1])
                     answer += Words[hundred[0].ToString() + hundred[1].ToString()];
+                //уникальные двузначные числа twelve, eleven и тд
+                else if (hundred[0] == '1')
+                    answer += Words[hundred];
                 //если у сотни десятки и единицы имеют разные цифры
                 else
                     answer += Words[hundred[0].ToString() + "-" + hundred[1].ToString()];
             }
-            else
+            //если сотни вообще есть
+            else if (hundred.Length > 0)
                 answer += Words[hundred[0].ToString()];
         }
         //поток обрабатывающий тысячи (работает как поток, обрабатывающий сотни)
         static void ThreadThousand()
         {
             string thisanswer = "";
+            //если тысяч трехзначное число
             if (thousand.Length == 3)
             {
+                //если в тысяче только сотни
                 if (thousand[1] == '0' && thousand[2] == '0')
                 {
                     answer += Words[thousand[0].ToString()] + " hundred thousand ";
@@ -162,13 +185,19 @@ namespace DigitParser
                 }
                 thisanswer += Words[thousand[0].ToString()];
                 thisanswer += " hundred";
+                //если тысяча имеет сотни, но не имеет десятки
                 if (thousand[1] == '0')
                     thisanswer += " " + Words[thousand[2].ToString()];
+                //если тысяа имеет только сотни
                 else if (thousand[2] == '0')
                 {
                     thisanswer += " ";
                     thisanswer += Words[thousand[1].ToString() + thousand[2].ToString()];
                 }
+                //если тысяча имеет уникальное двухзначное чилсло, twelve, eleven
+                else if (thousand[1] == '1')
+                    thisanswer += " " + Words[thousand[1].ToString() + thousand[2].ToString()];
+                //если тысяча имеет двухзначное число по типу 22 twenty-two, 33, 35
                 else
                 {
                     thisanswer += " ";
@@ -180,16 +209,24 @@ namespace DigitParser
                 thisanswer += " thousand ";
                 answer += thisanswer;
             }
+            //если тысяча состоит из десятков
             else if (thousand.Length == 2)
             {
+                //если в тысяче нет единиц
                 if (thousand[1] == '0')
                     answer += Words[thousand[0].ToString() + thousand[1].ToString()] + " thousand ";
+                //если тысяча состоит из одинаковых цифр 22 33
                 else if (thousand[0] == thousand[1])
                     answer += Words[thousand[0].ToString() + thousand[1].ToString()] + " thousand ";
+                //если тысяча имеет уникальное двухзначное число 12 13 14 15
+                else if (thousand[0] == '1')
+                    answer += Words[million[0].ToString() + million[1].ToString()] + " thousand";
+                //если тысяа другое любое число, 25, 26
                 else
                     answer += Words[thousand[0].ToString() + "0"] + "-" + Words[thousand[1].ToString()] + " thousand ";
             }
-            else
+            //если тысячи есть
+            else if (thousand.Length > 0)
                 answer += Words[thousand[0].ToString()] + " thousand ";
         }
         //поток обрабатывающий миллионы
@@ -212,6 +249,8 @@ namespace DigitParser
                     thisanswer += " ";
                     thisanswer += Words[million[1].ToString() + million[2].ToString()];
                 }
+                else if (million[1] == '1')
+                    thisanswer += " " + Words[million[1].ToString() + million[2].ToString()];
                 else
                 {
                     thisanswer += " ";
@@ -226,22 +265,17 @@ namespace DigitParser
             else if (million.Length == 2)
             {
                 if (million[1] == '0')
-                    answer += Words[million[0].ToString() + million[1].ToString()] + " million ";
+                    answer += Words[million[0].ToString() + million[1].ToString()];
+                else if (million[0] == million[1])
+                    answer += Words[million[0].ToString() + million[1].ToString()];
+                else if (million[0] == '1')
+                    answer += Words[million[0].ToString() + million[1].ToString()];
                 else
-                    answer += Words[million[0].ToString() + "0"] + "-" + Words[million[1].ToString()] + " million ";
+                    answer += Words[million[0].ToString() + "-" + million[1].ToString()];
+                answer += " million ";
             }
-            else
+            else if(million.Length > 0)
                 answer += Words[million[0].ToString()] + " million ";
-        }
-        //метод делает reverse строки
-        static string StringReverse(string str)
-        {
-            string answer = "";
-            for (int i = str.Length - 1; i >= 0; i--)
-            {
-                answer += str[i].ToString();
-            }
-            return answer;
         }
         //избавиться от лишних нулей перед числом. Было 001 стало 1 
         static void CheckingForZerosBeforeANumber()
